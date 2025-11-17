@@ -8,7 +8,7 @@ from ultralytics import YOLO
 model = YOLO("yolo11n.pt")
 
 # 動画ファイルを開く
-video_path = "test2.mp4"
+video_path = "videos/test2.mp4"
 cap = cv2.VideoCapture(video_path)
 
 # トラッキング履歴と状態
