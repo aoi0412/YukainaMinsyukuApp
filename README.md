@@ -32,4 +32,4 @@ python test.py
 - `custom_track.yaml`: トラッカー設定（既存のものを利用）。
 
 ## 参考文献
-| Ultralystics YOLO ドキュメント：https://docs.ultralytics.com/ja/quickstart/
+Ultralystics YOLO ドキュメント：`https://docs.ultralytics.com/ja/quickstart/`
