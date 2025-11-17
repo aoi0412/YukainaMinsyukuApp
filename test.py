@@ -8,7 +8,7 @@ from ultralytics import YOLO
 model = YOLO("yolo11n.pt")
 
 # 動画ファイルを開く
-video_path = "videos/test2.mp4"
+video_path = "videos/test3.mp4"
 cap = cv2.VideoCapture(video_path)
 
 # トラッキング履歴と状態
@@ -77,7 +77,7 @@ while not zone_set and not exit_requested:
         )
     cv2.putText(
         preview,
-        "左クリックで2点を指定 (右クリックでリセット)",
+        "add 2points with left click (reset with right click)",
         (10, 25),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,
@@ -87,7 +87,7 @@ while not zone_set and not exit_requested:
     )
     cv2.putText(
         preview,
-        "確定後に処理開始 / qで終了",
+        "start process after definition / q to end process",
         (10, 55),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,
@@ -157,9 +157,9 @@ while cap.isOpened():
 
         # フェードアウトしたIDに入退室ラベルを付与
         disappeared_ids = active_ids_prev - current_ids
-        for tid in disappeared_ids:
-            if tid in last_positions and tid not in event_labels:
-                event_labels[tid] = "in" if is_inside_zone(last_positions[tid]) else "out"
+        # for tid in disappeared_ids:
+            # if tid in last_positions and tid not in event_labels:
+                # event_labels[tid] = "in" if is_inside_zone(last_positions[tid]) else "out"
         active_ids_prev = current_ids
 
     # ゾーン矩形を描画
