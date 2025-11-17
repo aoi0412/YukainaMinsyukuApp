@@ -11,13 +11,15 @@ model = YOLO("yolo11n.pt")
 video_path = "test2.mp4"
 cap = cv2.VideoCapture(video_path)
 
-# トラッキング履歴を保存する辞書
+# トラッキング履歴と状態
 track_history = defaultdict(lambda: [])
 paused = False
 exit_requested = False
 
-# 入退室判定用のゾーン矩形（左上x1,y1, 右下x2,y2）
-zone_rect = (100, 100, 400, 400)
+# 入退室判定用ゾーン（左上と右下をマウスで指定）
+zone_rect = None  # (x1, y1, x2, y2)
+zone_points = []
+zone_set = False
 
 # 各IDの最後の中心座標と入退室ラベル
 last_positions = {}
@@ -26,14 +28,87 @@ active_ids_prev = set()
 
 
 def is_inside_zone(pos):
+    if zone_rect is None:
+        return False
     x1, y1, x2, y2 = zone_rect
     x, y = pos
     return x1 <= x <= x2 and y1 <= y <= y2
 
 
+def mouse_callback(event, x, y, flags, param):
+    global zone_points, zone_rect, zone_set
+    if event == cv2.EVENT_LBUTTONDOWN:
+        zone_points.append((x, y))
+        if len(zone_points) == 2:
+            (x1, y1), (x2, y2) = zone_points
+            zone_rect = (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+            zone_set = True
+    elif event == cv2.EVENT_RBUTTONDOWN:
+        # 右クリックでリセット
+        zone_points = []
+        zone_rect = None
+        zone_set = False
+
+
+# 最初のフレームを取得し、ゾーン確定まで一時停止
+success, frame = cap.read()
+if not success:
+    cap.release()
+    raise SystemExit("動画の読み込みに失敗しました")
+
+cv2.namedWindow("YOLO11 Tracking")
+cv2.setMouseCallback("YOLO11 Tracking", mouse_callback)
+
+# ゾーン確定フェーズ（1フレーム目で停止）
+while not zone_set and not exit_requested:
+    preview = frame.copy()
+    # 指定済みの点を表示
+    for pt in zone_points:
+        cv2.circle(preview, pt, 4, (0, 255, 255), -1)
+    # 2点揃ったら矩形を描画
+    if len(zone_points) == 2:
+        (x1, y1), (x2, y2) = zone_points
+        cv2.rectangle(
+            preview,
+            (min(x1, x2), min(y1, y2)),
+            (max(x1, x2), max(y1, y2)),
+            (255, 0, 0),
+            2,
+        )
+    cv2.putText(
+        preview,
+        "左クリックで2点を指定 (右クリックでリセット)",
+        (10, 25),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (0, 255, 0),
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        preview,
+        "確定後に処理開始 / qで終了",
+        (10, 55),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (0, 255, 0),
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.imshow("YOLO11 Tracking", preview)
+    key = cv2.waitKey(50) & 0xFF
+    if key == ord("q"):
+        exit_requested = True
+        break
+
+if exit_requested:
+    cap.release()
+    cv2.destroyAllWindows()
+    raise SystemExit
+
 # 動画フレームをループ処理
 while cap.isOpened():
-    # 動画から1フレーム読み込む（ポーズ中は読み込まない）
+    # ポーズ中は新規フレームを読まない
     if not paused:
         success, frame = cap.read()
     else:
@@ -84,12 +159,13 @@ while cap.isOpened():
         disappeared_ids = active_ids_prev - current_ids
         for tid in disappeared_ids:
             if tid in last_positions and tid not in event_labels:
-                event_labels[tid] = "入室" if is_inside_zone(last_positions[tid]) else "退室"
+                event_labels[tid] = "in" if is_inside_zone(last_positions[tid]) else "out"
         active_ids_prev = current_ids
 
-    # ゾーン矩形を描画（処理前の目印）
-    zx1, zy1, zx2, zy2 = zone_rect
-    cv2.rectangle(frame, (zx1, zy1), (zx2, zy2), (255, 0, 0), 2)
+    # ゾーン矩形を描画
+    if zone_rect is not None:
+        zx1, zy1, zx2, zy2 = zone_rect
+        cv2.rectangle(frame, (zx1, zy1), (zx2, zy2), (255, 0, 0), 2)
 
     # 画面左上に現在のIDとフェードアウト済みの入退室ラベルをリスト表示
     overlay_lines = []
