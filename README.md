@@ -30,3 +30,6 @@ python test.py
 
 - `test.py`: メインスクリプト。`custom_track.yaml` をトラッカー設定として参照します。
 - `custom_track.yaml`: トラッカー設定（既存のものを利用）。
+
+## 参考文献
+| Ultralystics YOLO ドキュメント：https://docs.ultralytics.com/ja/quickstart/
