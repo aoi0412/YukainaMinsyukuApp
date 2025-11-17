@@ -1,5 +1,15 @@
 # YOLO11 トラッキングスクリプト仕様
 
+## 実行方法
+
+```
+pip install -r requirements.txt
+```
+
+```
+python test.py
+```
+
 ## 概要
 
 - Ultranytics YOLO11 を使って人物(`person`)をトラッキングし、バウンディングボックス消失時の最後の中心座標が入退室判定用ゾーン内かどうかで `in` / `out` ラベルを付与します。
