@@ -2,12 +2,18 @@
 
 ## 実行方法
 
+uv がインストールされていることを前提とします。インストールされていない場合は、[公式サイト](https://uv.dev/)を参照してください。
+
 ```
-pip install -r requirements.txt
+uv venv
 ```
 
 ```
-python test.py
+uv pip install -r requirements.txt
+```
+
+```
+uv python main.py
 ```
 
 ## 概要
@@ -28,7 +34,20 @@ python test.py
 
 ## ファイル
 
-- `test.py`: メインスクリプト。`custom_track.yaml` をトラッカー設定として参照します。
+## 出力 (今回の仕様)
+
+- スクリプトを実行すると、毎回 `result/{video_filename}-{timestamp}/` という専用フォルダが作られます。
+- フォルダ内には以下のファイルが出力されます:
+
+  - `final.jpg` — 最終フレームに軌跡やラベルを重ねた画像
+  - `id{tid}_person.png` — 最初に検出された人物マスクを使ってフレームからトリミングした透過 PNG（人物だけが残る）
+
+- 例: 実行後に生成されるファイル例
+
+  - `result/test2-2025-11-21_121314/final.jpg`
+  - `result/test2-2025-11-21_121314/id3_mask.png`
+  - `result/test2-2025-11-21_121314/id3_person.png`
+
 - `custom_track.yaml`: トラッカー設定（既存のものを利用）。
 
 ## 参考文献
