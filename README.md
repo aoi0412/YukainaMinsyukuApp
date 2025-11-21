@@ -3,11 +3,15 @@
 ## 実行方法
 
 ```
-pip install -r requirements.txt
+uv venv
 ```
 
 ```
-python test.py
+uv pip install -r requirements.txt
+```
+
+```
+uv python test.py
 ```
 
 ## 概要
