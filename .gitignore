@@ -1,0 +1,8 @@
+.venv
+result/*
+videos/*
+result.zip
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
