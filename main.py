@@ -14,6 +14,9 @@ history = []
 # YOLO11モデルを読み込む
 model = YOLO("yolo11n.pt")
 
+# 
+model.train(data="HomeObjects-3K.yaml", epochs=100, imgsz=640, device="mps")
+
 # 動画ファイルを開く
 video_path = "videos/test2.mp4"
 video_filename = video_path.split("/")[-1].split(".")[0]
@@ -180,9 +183,8 @@ while cap.isOpened():
             obj_name = names.get(int(cls), "unknown") if cls is not None else "unknown"
 
             # 人以外のオブジェクトだった場合は描画しない
-            if obj_name != "person":
+            if obj_name != "person" and obj_name != "":
                 continue
-
             # 今映っている人物一覧に登録
             current_ids.add(track_id)
 
