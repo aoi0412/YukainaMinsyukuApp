@@ -3,19 +3,27 @@ from collections import defaultdict
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from typing import TypedDict, NotRequired
+# from typing import TypedDict, NotRequired
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
+import sys
+# track-doorをインポート
+import track_door
 
 history = []
+
+# ヘッドレス環境かどうかを判定（GUI機能が使えるかチェック）
+def is_headless_environment():
+    """ヘッドレス環境（GUI機能が無い）かどうかを判定"""
+    return os.environ.get('QT_QPA_PLATFORM') == 'offscreen' or not os.environ.get('DISPLAY')
 
 
 # YOLO11モデルを読み込む
 model = YOLO("yolo11n.pt")
 
 # 
-model.train(data="HomeObjects-3K.yaml", epochs=100, imgsz=640, device="mps")
+# model.train(data="HomeObjects-3K.yaml", epochs=100, imgsz=640)
 
 # 動画ファイルを開く
 video_path = "videos/test2.mp4"
@@ -83,50 +91,66 @@ if not success:
     cap.release()
     raise SystemExit("動画の読み込みに失敗しました")
 
-cv2.namedWindow("YOLO11 Tracking")
-cv2.setMouseCallback("YOLO11 Tracking", mouse_callback)
+# ヘッドレス環境への対応
+HEADLESS = is_headless_environment()
 
-# ゾーン確定フェーズ（1フレーム目で停止）
-while not zone_set and not exit_requested:
-    preview = frame.copy()
-    # 指定済みの点を表示
-    for pt in zone_points:
-        cv2.circle(preview, pt, 4, (0, 255, 255), -1)
-    # 2点揃ったら矩形を描画
-    if len(zone_points) == 2:
-        (x1, y1), (x2, y2) = zone_points
-        cv2.rectangle(
+if not HEADLESS:
+    # GUI利用可能な環境：マウスでゾーン指定
+    cv2.namedWindow("YOLO11 Tracking")
+    cv2.setMouseCallback("YOLO11 Tracking", mouse_callback)
+    
+    # ゾーン確定フェーズ（1フレーム目で停止）
+    while not zone_set and not exit_requested:
+        preview = frame.copy()
+        preview = track_door.detect_door(preview)
+        # 指定済みの点を表示
+        for pt in zone_points:
+            cv2.circle(preview, pt, 4, (0, 255, 255), -1)
+        # 2点揃ったら矩形を描画
+        if len(zone_points) == 2:
+            (x1, y1), (x2, y2) = zone_points
+            cv2.rectangle(
+                preview,
+                (min(x1, x2), min(y1, y2)),
+                (max(x1, x2), max(y1, y2)),
+                (255, 0, 0),
+                2,
+            )
+        cv2.putText(
             preview,
-            (min(x1, x2), min(y1, y2)),
-            (max(x1, x2), max(y1, y2)),
-            (255, 0, 0),
+            "add 2points with left click (reset with right click)",
+            (10, 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
             2,
+            cv2.LINE_AA,
         )
-    cv2.putText(
-        preview,
-        "add 2points with left click (reset with right click)",
-        (10, 25),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (0, 255, 0),
-        2,
-        cv2.LINE_AA,
-    )
-    cv2.putText(
-        preview,
-        "start process after definition / q to end process",
-        (10, 55),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (0, 255, 0),
-        2,
-        cv2.LINE_AA,
-    )
-    cv2.imshow("YOLO11 Tracking", preview)
-    key = cv2.waitKey(50) & 0xFF
-    if key == ord("q"):
-        exit_requested = True
-        break
+        cv2.putText(
+            preview,
+            "start process after definition / q to end process",
+            (10, 55),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.imshow("YOLO11 Tracking", preview)
+        key = cv2.waitKey(50) & 0xFF
+        if key == ord("q"):
+            exit_requested = True
+            break
+else:
+    # ヘッドレス環境：デフォルトゾーンを使用
+    print("Headless environment detected. Using default zone.", file=sys.stderr)
+    print("If you want to specify a custom zone, set zone_rect in the code.", file=sys.stderr)
+    # デフォルトゾーン設定：フレームの中央部分を使用（例：x=100-500, y=100-400）
+    h, w = frame.shape[:2]
+    # 例：フレームの20%-80%の領域をゾーンとする
+    zone_rect = (int(w * 0.2), int(h * 0.2), int(w * 0.8), int(h * 0.8))
+    zone_set = True
+    print(f"Default zone set: {zone_rect}", file=sys.stderr)
 
 # zone_rectに選択したボックスの座標が記録されている
 
@@ -183,8 +207,8 @@ while cap.isOpened():
             obj_name = names.get(int(cls), "unknown") if cls is not None else "unknown"
 
             # 人以外のオブジェクトだった場合は描画しない
-            if obj_name != "person" and obj_name != "":
-                continue
+            # if obj_name != "person":
+            #     continue
             # 今映っている人物一覧に登録
             current_ids.add(track_id)
 
@@ -274,23 +298,28 @@ while cap.isOpened():
             cv2.LINE_AA,
         )
     last_frame = frame.copy()
-    # 描画済みフレームを表示
-    cv2.imshow("YOLO11 Tracking", frame)
+    # 描画済みフレームを表示（GUI環境のみ）
+    if not HEADLESS:
+        cv2.imshow("YOLO11 Tracking", frame)
 
     # qキー:終了, sキー:一時停止/再開
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord("q"):
-        break
-    if key == ord("s"):
-        paused = not paused
-        while paused and not exit_requested:
-            cv2.imshow("YOLO11 Tracking", frame)
-            key_pause = cv2.waitKey(100) & 0xFF
-            if key_pause == ord("s"):
-                paused = False
-            elif key_pause == ord("q"):
-                exit_requested = True
-                break
+    if not HEADLESS:
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            break
+        if key == ord("s"):
+            paused = not paused
+            while paused and not exit_requested:
+                cv2.imshow("YOLO11 Tracking", frame)
+                key_pause = cv2.waitKey(100) & 0xFF
+                if key_pause == ord("s"):
+                    paused = False
+                elif key_pause == ord("q"):
+                    exit_requested = True
+                    break
+    else:
+        # ヘッドレス環境では自動で処理を継続
+        pass
     
 if last_frame is not None:
     overlay_lines = []
@@ -341,8 +370,9 @@ if last_frame is not None:
         2,
         cv2.LINE_AA,
     )
-    # 描画済みフレームを表示
-    cv2.imshow("YOLO11 Tracking", last_frame)
+    # 描画済みフレームを表示（GUI環境のみ）
+    if not HEADLESS:
+        cv2.imshow("YOLO11 Tracking", last_frame)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     # 毎回の実行ごとに専用フォルダを作成して出力する

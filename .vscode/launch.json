@@ -6,11 +6,11 @@
   "configurations": [
     {
       "name": "Python デバッガー: 現在のファイル",
-      "type": "debugpy",
+      "type": "python",
       "request": "launch",
       "program": "${file}",
-      // VS Code で選択されている Python インタープリタを使う
-      "python": "${command:python.interpreterPath}",
+      // WSL 上の仮想環境を直接指定して cmd.exe を経由しない
+      "python": "${workspaceFolder}/.venv/bin/python",
       "console": "integratedTerminal"
     }
   ]
